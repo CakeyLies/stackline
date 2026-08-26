@@ -1,3 +1,5 @@
+<img src="assets/icon/icon_legacy.png" alt="Stackline icon" width="96" />
+
 # Stackline
 
 A from-scratch RPN scientific calculator for Android, built entirely in Flutter/Dart —
