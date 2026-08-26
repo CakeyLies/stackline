@@ -75,6 +75,15 @@ class FunctionsController extends ChangeNotifier {
 
   bool get awaitingRegister => _pendingRegister != null;
 
+  /// Commits any in-progress digit entry and returns the current X
+  /// expression — used by "Differentiate"/"Graph" actions that need the
+  /// up-to-date expression even if the user is mid-keystroke.
+  Expr commitX() {
+    _commitIfNeeded();
+    _notifyOnly();
+    return _stack[0];
+  }
+
   String get xDisplay =>
       _entryActive ? _entryString() : _stack[0].toDisplayString();
   String get yDisplay => _stack[1].toDisplayString();

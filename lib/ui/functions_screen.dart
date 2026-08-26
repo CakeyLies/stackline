@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../state/calculator_controller.dart';
 import '../state/functions_controller.dart';
+import 'graph_screen.dart';
 import 'keypad.dart';
 
 /// The saved-functions menu: create, open, rename, delete.
@@ -148,6 +149,7 @@ class _FunctionTile extends StatelessWidget {
                 icon: Icon(Icons.more_vert, color: t.keyText),
                 onSelected: (action) => _onAction(context, action),
                 itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'graph', child: Text('Graph')),
                   PopupMenuItem(value: 'rename', child: Text('Rename')),
                   PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
@@ -161,6 +163,16 @@ class _FunctionTile extends StatelessWidget {
 
   Future<void> _onAction(BuildContext context, String action) async {
     switch (action) {
+      case 'graph':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => GraphScreen(
+              controller: controller,
+              function: fn.body,
+              title: fn.name,
+            ),
+          ),
+        );
       case 'rename':
         final name = await _promptForName(
           context,
@@ -201,6 +213,16 @@ class FunctionEditorScreen extends StatelessWidget {
           title: Text(controller.functions.current?.name ?? 'Function'),
           actions: [
             IconButton(
+              icon: const Icon(Icons.functions),
+              tooltip: 'Differentiate',
+              onPressed: () => _showDerivative(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.show_chart),
+              tooltip: 'Graph',
+              onPressed: () => _openGraph(context),
+            ),
+            IconButton(
               icon: const Icon(Icons.save_outlined),
               tooltip: 'Save',
               onPressed: () {
@@ -219,6 +241,41 @@ class FunctionEditorScreen extends StatelessWidget {
               builder: (context, _) => _buildBody(context, compact: compact),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  void _showDerivative(BuildContext context) {
+    final f = controller.functions.commitX();
+    final derivative = f.differentiate().simplify();
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Derivative'),
+        content: Text(
+          'f(x) = ${f.toDisplayString()}\n\n'
+          "f'(x) = ${derivative.toDisplayString()}",
+          style: const TextStyle(fontFamily: 'monospace'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openGraph(BuildContext context) {
+    final f = controller.functions.commitX();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GraphScreen(
+          controller: controller,
+          function: f,
+          title: controller.functions.current?.name ?? 'Graph',
         ),
       ),
     );
