@@ -6,11 +6,11 @@ enum DisplayStyle { classic, sevenSegment, vfd, dotMatrix }
 
 extension DisplayStyleLabel on DisplayStyle {
   String get label => switch (this) {
-        DisplayStyle.classic => 'Classic',
-        DisplayStyle.sevenSegment => '7-Segment',
-        DisplayStyle.vfd => 'VFD',
-        DisplayStyle.dotMatrix => 'Dot Matrix',
-      };
+    DisplayStyle.classic => 'Classic',
+    DisplayStyle.sevenSegment => '7-Segment',
+    DisplayStyle.vfd => 'VFD',
+    DisplayStyle.dotMatrix => 'Dot Matrix',
+  };
 }
 
 @immutable

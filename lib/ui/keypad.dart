@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../model/opcode.dart';
 import '../model/theme.dart';
 import '../state/calculator_controller.dart';
 
@@ -17,6 +18,9 @@ class _Key {
     this.icon,
     this.shiftIcon,
     this.flex = 1,
+    this.opcode,
+    this.shiftOpcode,
+    this.digitValue,
   });
 
   final String label;
@@ -27,7 +31,113 @@ class _Key {
   final KeyIcon? icon;
   final KeyIcon? shiftIcon;
   final int flex;
+
+  /// This key's identity in the shared program-recording vocabulary (see
+  /// `lib/model/opcode.dart`). Null for keys with no program meaning
+  /// (SHIFT itself).
+  final Opcode? opcode;
+  final Opcode? shiftOpcode;
+
+  /// The digit this key enters, for [Opcode.digit] keys — carried alongside
+  /// [opcode] since a program step needs to know *which* digit was pressed.
+  final int? digitValue;
 }
+
+/// One calculator action's label/handler/icon, keyed by [Opcode] — the
+/// single source of truth both [Keypad] layouts pull from, so every action
+/// is wired (and opcode-tagged) exactly once instead of twice.
+class _Spec {
+  const _Spec(this.label, this.action, {this.icon});
+
+  final String label;
+  final VoidCallback action;
+  final KeyIcon? icon;
+}
+
+Map<Opcode, _Spec> _specsFor(CalculatorController c) => {
+  Opcode.reciprocal: _Spec('1/x', c.reciprocal),
+  Opcode.power: _Spec('yˣ', c.power),
+  Opcode.sqrt: _Spec('√x', c.sqrt),
+  Opcode.root: _Spec('x√y', c.root),
+  Opcode.square: _Spec('x²', c.square),
+  Opcode.factorial: _Spec('n!', c.factorial),
+  Opcode.log10: _Spec('LOG', c.log10),
+  Opcode.tenToX: _Spec('10ˣ', c.tenToX),
+  Opcode.ln: _Spec('LN', c.ln),
+  Opcode.eToX: _Spec('eˣ', c.eToX),
+  Opcode.sin: _Spec('SIN', c.sin),
+  Opcode.asin: _Spec('ASIN', c.asin),
+  Opcode.cos: _Spec('COS', c.cos),
+  Opcode.acos: _Spec('ACOS', c.acos),
+  Opcode.tan: _Spec('TAN', c.tan),
+  Opcode.atan: _Spec('ATAN', c.atan),
+  Opcode.percent: _Spec('%', c.percent),
+  Opcode.percentChange: _Spec('Δ%', c.percentChange),
+  Opcode.pi: _Spec('π', c.pushPi),
+  Opcode.eConst: _Spec('e', c.pushE),
+  Opcode.store: _Spec('STO', c.pressStore),
+  Opcode.recall: _Spec('RCL', c.pressRecall),
+  Opcode.swapXY: _Spec('', c.swapXY, icon: KeyIcon.swap),
+  Opcode.rollDown: _Spec('R', c.rollDown, icon: KeyIcon.down),
+  Opcode.rollUp: _Spec('R', c.rollUp, icon: KeyIcon.up),
+  Opcode.lastX: _Spec('LASTx', c.lastXRecall),
+  Opcode.clearX: _Spec('CLx', c.clearX),
+  Opcode.divide: _Spec('÷', c.divide),
+  Opcode.multiply: _Spec('×', c.multiply),
+  Opcode.subtract: _Spec('−', c.subtract),
+  Opcode.add: _Spec('+', c.add),
+  Opcode.decimalPoint: _Spec('.', c.decimalPoint),
+  Opcode.enterExponent: _Spec('E', c.enterExponent),
+  Opcode.changeSign: _Spec('CHS', c.changeSign),
+  Opcode.backspace: _Spec('DEL', c.backspace),
+  Opcode.enter: _Spec('ENTER', c.enter),
+};
+
+/// Builds a folded (shift-pairing) key from the shared spec table.
+_Key _k(
+  Map<Opcode, _Spec> s,
+  Opcode op,
+  KeyKind kind, {
+  Opcode? shiftOp,
+  int flex = 1,
+}) {
+  final spec = s[op]!;
+  final shiftSpec = shiftOp == null ? null : s[shiftOp];
+  return _Key(
+    spec.label,
+    kind,
+    spec.action,
+    shiftLabel: shiftSpec?.label,
+    shiftAction: shiftSpec?.action,
+    icon: spec.icon,
+    shiftIcon: shiftSpec?.icon,
+    flex: flex,
+    opcode: op,
+    shiftOpcode: shiftOp,
+  );
+}
+
+/// Builds an unfolded (no-shift, its own key) key from the shared spec table.
+_Key _u(Map<Opcode, _Spec> s, Opcode op, KeyKind kind, {int flex = 1}) {
+  final spec = s[op]!;
+  return _Key(
+    spec.label,
+    kind,
+    spec.action,
+    icon: spec.icon,
+    flex: flex,
+    opcode: op,
+  );
+}
+
+_Key _digitKey(CalculatorController c, int n, {int flex = 1}) => _Key(
+  '$n',
+  KeyKind.normal,
+  () => c.digit(n),
+  flex: flex,
+  opcode: Opcode.digit,
+  digitValue: n,
+);
 
 class Keypad extends StatelessWidget {
   const Keypad({
@@ -47,164 +157,143 @@ class Keypad extends StatelessWidget {
       return;
     }
     final shifted = controller.shift && key.shiftAction != null;
+
+    if (controller.isRecordingProgram) {
+      final opcode = shifted ? key.shiftOpcode : key.opcode;
+      controller.consumeShift();
+      if (opcode != null) {
+        controller.programs.recordKey(opcode, digitValue: key.digitValue);
+      }
+      return;
+    }
+
     controller.consumeShift();
     (shifted ? key.shiftAction! : key.action)();
   }
 
-  List<List<_Key>> _foldedLayout(CalculatorController c) => [
-    [
-      _Key(
-        '1/x',
-        KeyKind.alt,
-        c.reciprocal,
-        shiftLabel: 'yˣ',
-        shiftAction: c.power,
-      ),
-      _Key('√x', KeyKind.alt, c.sqrt, shiftLabel: 'x√y', shiftAction: c.root),
-      _Key(
-        'x²',
-        KeyKind.alt,
-        c.square,
-        shiftLabel: 'n!',
-        shiftAction: c.factorial,
-      ),
-      _Key(
-        'LOG',
-        KeyKind.alt,
-        c.log10,
-        shiftLabel: '10ˣ',
-        shiftAction: c.tenToX,
-      ),
-      _Key('LN', KeyKind.alt, c.ln, shiftLabel: 'eˣ', shiftAction: c.eToX),
-    ],
-    [
-      _Key('SIN', KeyKind.alt, c.sin, shiftLabel: 'ASIN', shiftAction: c.asin),
-      _Key('COS', KeyKind.alt, c.cos, shiftLabel: 'ACOS', shiftAction: c.acos),
-      _Key('TAN', KeyKind.alt, c.tan, shiftLabel: 'ATAN', shiftAction: c.atan),
-      _Key(
-        '%',
-        KeyKind.alt,
-        c.percent,
-        shiftLabel: 'Δ%',
-        shiftAction: c.percentChange,
-      ),
-      _Key('π', KeyKind.alt, c.pushPi, shiftLabel: 'e', shiftAction: c.pushE),
-    ],
-    [
-      _Key(
-        'STO',
-        KeyKind.alt,
-        c.pressStore,
-        shiftLabel: 'RCL',
-        shiftAction: c.pressRecall,
-      ),
-      _Key('', KeyKind.alt, c.swapXY, icon: KeyIcon.swap),
-      _Key(
-        'R',
-        KeyKind.alt,
-        c.rollDown,
-        icon: KeyIcon.down,
-        shiftIcon: KeyIcon.up,
-        shiftAction: c.rollUp,
-      ),
-      _Key('LASTx', KeyKind.alt, c.lastXRecall),
-      _Key('CLx', KeyKind.alt, c.clearX),
-    ],
-    [
-      _Key('7', KeyKind.normal, () => c.digit(7)),
-      _Key('8', KeyKind.normal, () => c.digit(8)),
-      _Key('9', KeyKind.normal, () => c.digit(9)),
-      _Key('÷', KeyKind.alt, c.divide),
-      _Key('×', KeyKind.alt, c.multiply),
-    ],
-    [
-      _Key('4', KeyKind.normal, () => c.digit(4)),
-      _Key('5', KeyKind.normal, () => c.digit(5)),
-      _Key('6', KeyKind.normal, () => c.digit(6)),
-      _Key('−', KeyKind.alt, c.subtract),
-      _Key('+', KeyKind.alt, c.add),
-    ],
-    [
-      _Key('1', KeyKind.normal, () => c.digit(1)),
-      _Key('2', KeyKind.normal, () => c.digit(2)),
-      _Key('3', KeyKind.normal, () => c.digit(3)),
-      _Key('.', KeyKind.normal, c.decimalPoint),
-      _Key('E', KeyKind.normal, c.enterExponent),
-    ],
-    [
-      _Key('0', KeyKind.normal, () => c.digit(0), flex: 2),
-      _Key('CHS', KeyKind.normal, c.changeSign),
-      _Key('DEL', KeyKind.alt, c.backspace),
-      _Key('SHIFT', KeyKind.shift, c.pressShift),
-    ],
-    [_Key('ENTER', KeyKind.accent, c.enter, flex: 5)],
-  ];
+  List<List<_Key>> _foldedLayout(CalculatorController c) {
+    final s = _specsFor(c);
+    return [
+      [
+        _k(s, Opcode.reciprocal, KeyKind.alt, shiftOp: Opcode.power),
+        _k(s, Opcode.sqrt, KeyKind.alt, shiftOp: Opcode.root),
+        _k(s, Opcode.square, KeyKind.alt, shiftOp: Opcode.factorial),
+        _k(s, Opcode.log10, KeyKind.alt, shiftOp: Opcode.tenToX),
+        _k(s, Opcode.ln, KeyKind.alt, shiftOp: Opcode.eToX),
+      ],
+      [
+        _k(s, Opcode.sin, KeyKind.alt, shiftOp: Opcode.asin),
+        _k(s, Opcode.cos, KeyKind.alt, shiftOp: Opcode.acos),
+        _k(s, Opcode.tan, KeyKind.alt, shiftOp: Opcode.atan),
+        _k(s, Opcode.percent, KeyKind.alt, shiftOp: Opcode.percentChange),
+        _k(s, Opcode.pi, KeyKind.alt, shiftOp: Opcode.eConst),
+      ],
+      [
+        _k(s, Opcode.store, KeyKind.alt, shiftOp: Opcode.recall),
+        _u(s, Opcode.swapXY, KeyKind.alt),
+        _k(s, Opcode.rollDown, KeyKind.alt, shiftOp: Opcode.rollUp),
+        _u(s, Opcode.lastX, KeyKind.alt),
+        _u(s, Opcode.clearX, KeyKind.alt),
+      ],
+      [
+        _digitKey(c, 7),
+        _digitKey(c, 8),
+        _digitKey(c, 9),
+        _u(s, Opcode.divide, KeyKind.alt),
+        _u(s, Opcode.multiply, KeyKind.alt),
+      ],
+      [
+        _digitKey(c, 4),
+        _digitKey(c, 5),
+        _digitKey(c, 6),
+        _u(s, Opcode.subtract, KeyKind.alt),
+        _u(s, Opcode.add, KeyKind.alt),
+      ],
+      [
+        _digitKey(c, 1),
+        _digitKey(c, 2),
+        _digitKey(c, 3),
+        _u(s, Opcode.decimalPoint, KeyKind.normal),
+        _u(s, Opcode.enterExponent, KeyKind.normal),
+      ],
+      [
+        _digitKey(c, 0, flex: 2),
+        _u(s, Opcode.changeSign, KeyKind.normal),
+        _u(s, Opcode.backspace, KeyKind.alt),
+        _Key('SHIFT', KeyKind.shift, c.pressShift),
+      ],
+      [_u(s, Opcode.enter, KeyKind.accent, flex: 5)],
+    ];
+  }
 
   /// Landscape has enough width to give every shifted function its own key
   /// instead of overloading a SHIFT toggle — same row count as the folded
   /// layout, just wider rows where a key used to carry two functions.
-  List<List<_Key>> _unfoldedLayout(CalculatorController c) => [
-    [
-      _Key('1/x', KeyKind.alt, c.reciprocal),
-      _Key('yˣ', KeyKind.alt, c.power),
-      _Key('√x', KeyKind.alt, c.sqrt),
-      _Key('x√y', KeyKind.alt, c.root),
-      _Key('x²', KeyKind.alt, c.square),
-      _Key('n!', KeyKind.alt, c.factorial),
-      _Key('LOG', KeyKind.alt, c.log10),
-      _Key('10ˣ', KeyKind.alt, c.tenToX),
-      _Key('LN', KeyKind.alt, c.ln),
-      _Key('eˣ', KeyKind.alt, c.eToX),
-    ],
-    [
-      _Key('SIN', KeyKind.alt, c.sin),
-      _Key('ASIN', KeyKind.alt, c.asin),
-      _Key('COS', KeyKind.alt, c.cos),
-      _Key('ACOS', KeyKind.alt, c.acos),
-      _Key('TAN', KeyKind.alt, c.tan),
-      _Key('ATAN', KeyKind.alt, c.atan),
-      _Key('%', KeyKind.alt, c.percent),
-      _Key('Δ%', KeyKind.alt, c.percentChange),
-      _Key('π', KeyKind.alt, c.pushPi),
-      _Key('e', KeyKind.alt, c.pushE),
-    ],
-    [
-      _Key('STO', KeyKind.alt, c.pressStore),
-      _Key('RCL', KeyKind.alt, c.pressRecall),
-      _Key('', KeyKind.alt, c.swapXY, icon: KeyIcon.swap),
-      _Key('R', KeyKind.alt, c.rollDown, icon: KeyIcon.down),
-      _Key('R', KeyKind.alt, c.rollUp, icon: KeyIcon.up),
-      _Key('LASTx', KeyKind.alt, c.lastXRecall),
-      _Key('CLx', KeyKind.alt, c.clearX),
-    ],
-    [
-      _Key('7', KeyKind.normal, () => c.digit(7)),
-      _Key('8', KeyKind.normal, () => c.digit(8)),
-      _Key('9', KeyKind.normal, () => c.digit(9)),
-      _Key('÷', KeyKind.alt, c.divide),
-      _Key('×', KeyKind.alt, c.multiply),
-    ],
-    [
-      _Key('4', KeyKind.normal, () => c.digit(4)),
-      _Key('5', KeyKind.normal, () => c.digit(5)),
-      _Key('6', KeyKind.normal, () => c.digit(6)),
-      _Key('−', KeyKind.alt, c.subtract),
-      _Key('+', KeyKind.alt, c.add),
-    ],
-    [
-      _Key('1', KeyKind.normal, () => c.digit(1)),
-      _Key('2', KeyKind.normal, () => c.digit(2)),
-      _Key('3', KeyKind.normal, () => c.digit(3)),
-      _Key('.', KeyKind.normal, c.decimalPoint),
-      _Key('E', KeyKind.normal, c.enterExponent),
-    ],
-    [
-      _Key('0', KeyKind.normal, () => c.digit(0), flex: 2),
-      _Key('CHS', KeyKind.normal, c.changeSign),
-      _Key('DEL', KeyKind.alt, c.backspace),
-    ],
-    [_Key('ENTER', KeyKind.accent, c.enter, flex: 5)],
-  ];
+  List<List<_Key>> _unfoldedLayout(CalculatorController c) {
+    final s = _specsFor(c);
+    return [
+      [
+        _u(s, Opcode.reciprocal, KeyKind.alt),
+        _u(s, Opcode.power, KeyKind.alt),
+        _u(s, Opcode.sqrt, KeyKind.alt),
+        _u(s, Opcode.root, KeyKind.alt),
+        _u(s, Opcode.square, KeyKind.alt),
+        _u(s, Opcode.factorial, KeyKind.alt),
+        _u(s, Opcode.log10, KeyKind.alt),
+        _u(s, Opcode.tenToX, KeyKind.alt),
+        _u(s, Opcode.ln, KeyKind.alt),
+        _u(s, Opcode.eToX, KeyKind.alt),
+      ],
+      [
+        _u(s, Opcode.sin, KeyKind.alt),
+        _u(s, Opcode.asin, KeyKind.alt),
+        _u(s, Opcode.cos, KeyKind.alt),
+        _u(s, Opcode.acos, KeyKind.alt),
+        _u(s, Opcode.tan, KeyKind.alt),
+        _u(s, Opcode.atan, KeyKind.alt),
+        _u(s, Opcode.percent, KeyKind.alt),
+        _u(s, Opcode.percentChange, KeyKind.alt),
+        _u(s, Opcode.pi, KeyKind.alt),
+        _u(s, Opcode.eConst, KeyKind.alt),
+      ],
+      [
+        _u(s, Opcode.store, KeyKind.alt),
+        _u(s, Opcode.recall, KeyKind.alt),
+        _u(s, Opcode.swapXY, KeyKind.alt),
+        _u(s, Opcode.rollDown, KeyKind.alt),
+        _u(s, Opcode.rollUp, KeyKind.alt),
+        _u(s, Opcode.lastX, KeyKind.alt),
+        _u(s, Opcode.clearX, KeyKind.alt),
+      ],
+      [
+        _digitKey(c, 7),
+        _digitKey(c, 8),
+        _digitKey(c, 9),
+        _u(s, Opcode.divide, KeyKind.alt),
+        _u(s, Opcode.multiply, KeyKind.alt),
+      ],
+      [
+        _digitKey(c, 4),
+        _digitKey(c, 5),
+        _digitKey(c, 6),
+        _u(s, Opcode.subtract, KeyKind.alt),
+        _u(s, Opcode.add, KeyKind.alt),
+      ],
+      [
+        _digitKey(c, 1),
+        _digitKey(c, 2),
+        _digitKey(c, 3),
+        _u(s, Opcode.decimalPoint, KeyKind.normal),
+        _u(s, Opcode.enterExponent, KeyKind.normal),
+      ],
+      [
+        _digitKey(c, 0, flex: 2),
+        _u(s, Opcode.changeSign, KeyKind.normal),
+        _u(s, Opcode.backspace, KeyKind.alt),
+      ],
+      [_u(s, Opcode.enter, KeyKind.accent, flex: 5)],
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../state/calculator_controller.dart';
 import 'keypad.dart';
 import 'lcd.dart';
+import 'programs_screen.dart';
 import 'theme_picker.dart';
 
 class CalculatorScreen extends StatelessWidget {
@@ -86,16 +87,30 @@ class _TopBar extends StatelessWidget {
             color: fg,
             onTap: controller.cycleDisplayDigits,
           ),
-          IconButton(
-            icon: Icon(Icons.palette_outlined, color: t.accent),
-            tooltip: 'Themes',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ThemePickerScreen(controller: controller),
-                ),
-              );
+          PopupMenuButton<String>(
+            icon: Icon(Icons.apps, color: t.accent),
+            tooltip: 'Menu',
+            onSelected: (value) {
+              switch (value) {
+                case 'themes':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ThemePickerScreen(controller: controller),
+                    ),
+                  );
+                case 'programs':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ProgramsListScreen(controller: controller),
+                    ),
+                  );
+              }
             },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'themes', child: Text('Themes')),
+              PopupMenuItem(value: 'programs', child: Text('Programs')),
+            ],
           ),
         ],
       ),

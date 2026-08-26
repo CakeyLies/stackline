@@ -22,7 +22,10 @@ class ThemePickerScreen extends StatelessWidget {
             children: [
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text('Display style', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                child: Text(
+                  'Display style',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
               ),
               SizedBox(
                 height: 104,
@@ -42,7 +45,10 @@ class ThemePickerScreen extends StatelessWidget {
               ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
-                child: Text('Color theme', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                child: Text(
+                  'Color theme',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
               ),
               for (final preset in CalcTheme.presets)
                 Padding(
@@ -63,7 +69,11 @@ class ThemePickerScreen extends StatelessWidget {
 }
 
 class _ThemeTile extends StatelessWidget {
-  const _ThemeTile({required this.preset, required this.selected, required this.onTap});
+  const _ThemeTile({
+    required this.preset,
+    required this.selected,
+    required this.onTap,
+  });
 
   final CalcTheme preset;
   final bool selected;
@@ -94,7 +104,10 @@ class _ThemeTile extends StatelessWidget {
               if (selected)
                 Icon(Icons.check_circle, color: preset.accent)
               else
-                Icon(Icons.circle_outlined, color: preset.keyText.withValues(alpha: 0.4)),
+                Icon(
+                  Icons.circle_outlined,
+                  color: preset.keyText.withValues(alpha: 0.4),
+                ),
             ],
           ),
         ),
@@ -132,7 +145,10 @@ class _StyleTile extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: selected ? theme.accent : Colors.transparent, width: 2),
+              border: Border.all(
+                color: selected ? theme.accent : Colors.transparent,
+                width: 2,
+              ),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -148,7 +164,12 @@ class _StyleTile extends StatelessWidget {
                     child: style == DisplayStyle.classic
                         ? Text(
                             '8.8',
-                            style: TextStyle(color: colors.lit, fontFamily: 'monospace', fontSize: 20, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              color: colors.lit,
+                              fontFamily: 'monospace',
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
                           )
                         : SegmentedNumber(
                             text: '8.8',
@@ -163,7 +184,11 @@ class _StyleTile extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   style.label,
-                  style: TextStyle(color: theme.keyText, fontSize: 11, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: theme.keyText,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],

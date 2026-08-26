@@ -337,16 +337,16 @@ class CalculatorEngine {
   void multiply() => _binary((a, b) => a * b);
 
   void divide() => _binary((a, b) {
-        if (b == Decimal.zero) throw const CalcError('Divide by 0');
-        return _div(a, b);
-      });
+    if (b == Decimal.zero) throw const CalcError('Divide by 0');
+    return _div(a, b);
+  });
 
   void power() => _binary((a, b) => _pow(a, b));
 
   void root() => _binary((a, b) {
-        if (b == Decimal.zero) throw const CalcError('Root of 0');
-        return _pow(a, _div(Decimal.one, b));
-      });
+    if (b == Decimal.zero) throw const CalcError('Root of 0');
+    return _pow(a, _div(Decimal.one, b));
+  });
 
   void percent() {
     _clearError();
@@ -393,47 +393,52 @@ class CalculatorEngine {
 
   // ---- unary functions ----
   void reciprocal() => _unary((a) {
-        if (a == Decimal.zero) throw const CalcError('Divide by 0');
-        return _div(Decimal.one, a);
-      });
+    if (a == Decimal.zero) throw const CalcError('Divide by 0');
+    return _div(Decimal.one, a);
+  });
 
   void sqrt() => _unary(_sqrtDecimal);
 
   void square() => _unary((a) => a * a);
 
   void log10() => _unary((a) {
-        if (a <= Decimal.zero) throw const CalcError('Invalid data');
-        return _doubleToDecimal(math.log(a.toDouble()) / math.ln10);
-      });
+    if (a <= Decimal.zero) throw const CalcError('Invalid data');
+    return _doubleToDecimal(math.log(a.toDouble()) / math.ln10);
+  });
 
   void ln() => _unary((a) {
-        if (a <= Decimal.zero) throw const CalcError('Invalid data');
-        return _doubleToDecimal(math.log(a.toDouble()));
-      });
+    if (a <= Decimal.zero) throw const CalcError('Invalid data');
+    return _doubleToDecimal(math.log(a.toDouble()));
+  });
 
-  void tenToX() => _unary((a) => _doubleToDecimal(math.pow(10, a.toDouble()).toDouble()));
+  void tenToX() =>
+      _unary((a) => _doubleToDecimal(math.pow(10, a.toDouble()).toDouble()));
 
   void eToX() => _unary((a) => _doubleToDecimal(math.exp(a.toDouble())));
 
-  void sin() => _unary((a) => _doubleToDecimal(math.sin(_toRadians(a.toDouble()))));
+  void sin() =>
+      _unary((a) => _doubleToDecimal(math.sin(_toRadians(a.toDouble()))));
 
-  void cos() => _unary((a) => _doubleToDecimal(math.cos(_toRadians(a.toDouble()))));
+  void cos() =>
+      _unary((a) => _doubleToDecimal(math.cos(_toRadians(a.toDouble()))));
 
-  void tan() => _unary((a) => _doubleToDecimal(math.tan(_toRadians(a.toDouble()))));
+  void tan() =>
+      _unary((a) => _doubleToDecimal(math.tan(_toRadians(a.toDouble()))));
 
   void asin() => _unary((a) {
-        final d = a.toDouble();
-        if (d < -1 || d > 1) throw const CalcError('Invalid data');
-        return _doubleToDecimal(_fromRadians(math.asin(d)));
-      });
+    final d = a.toDouble();
+    if (d < -1 || d > 1) throw const CalcError('Invalid data');
+    return _doubleToDecimal(_fromRadians(math.asin(d)));
+  });
 
   void acos() => _unary((a) {
-        final d = a.toDouble();
-        if (d < -1 || d > 1) throw const CalcError('Invalid data');
-        return _doubleToDecimal(_fromRadians(math.acos(d)));
-      });
+    final d = a.toDouble();
+    if (d < -1 || d > 1) throw const CalcError('Invalid data');
+    return _doubleToDecimal(_fromRadians(math.acos(d)));
+  });
 
-  void atan() => _unary((a) => _doubleToDecimal(_fromRadians(math.atan(a.toDouble()))));
+  void atan() =>
+      _unary((a) => _doubleToDecimal(_fromRadians(math.atan(a.toDouble()))));
 
   void factorial() => _unary(_factorial);
 

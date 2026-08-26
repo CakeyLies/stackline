@@ -5,11 +5,17 @@ import '../engine/display.dart';
 import '../engine/engine.dart';
 import '../model/display_style.dart';
 import '../model/theme.dart';
+import 'programs_controller.dart';
 
 enum PendingOp { store, recall }
 
 class CalculatorController extends ChangeNotifier {
   CalculatorController(this._prefs) {
+    programs = ProgramsController(
+      engine: engine,
+      prefs: _prefs,
+      onChanged: _notify,
+    );
     _loadPrefs();
   }
 
@@ -21,6 +27,7 @@ class CalculatorController extends ChangeNotifier {
 
   final SharedPreferences _prefs;
   final CalculatorEngine engine = CalculatorEngine();
+  late final ProgramsController programs;
 
   CalcTheme theme = CalcTheme.presets.first;
   DisplayStyle displayStyle = DisplayStyle.classic;
@@ -28,6 +35,7 @@ class CalculatorController extends ChangeNotifier {
   bool _shift = false;
 
   bool get shift => _shift;
+  bool get isRecordingProgram => programs.isRecording;
 
   void _loadPrefs() {
     theme = CalcTheme.byName(_prefs.getString(_kTheme));
@@ -218,8 +226,8 @@ class CalculatorController extends ChangeNotifier {
 
   // ---- modes ----
   void cycleAngleMode() {
-    engine.angleMode =
-        AngleMode.values[(engine.angleMode.index + 1) % AngleMode.values.length];
+    engine.angleMode = AngleMode
+        .values[(engine.angleMode.index + 1) % AngleMode.values.length];
     _notify();
   }
 
@@ -252,9 +260,12 @@ class CalculatorController extends ChangeNotifier {
     return formatDecimal(engine.x, engine.displayMode, engine.displayDigits);
   }
 
-  String get yText => formatDecimal(engine.y, engine.displayMode, engine.displayDigits);
-  String get zText => formatDecimal(engine.z, engine.displayMode, engine.displayDigits);
-  String get tText => formatDecimal(engine.t, engine.displayMode, engine.displayDigits);
+  String get yText =>
+      formatDecimal(engine.y, engine.displayMode, engine.displayDigits);
+  String get zText =>
+      formatDecimal(engine.z, engine.displayMode, engine.displayDigits);
+  String get tText =>
+      formatDecimal(engine.t, engine.displayMode, engine.displayDigits);
   String get lastXText =>
       formatDecimal(engine.lastX, engine.displayMode, engine.displayDigits);
 

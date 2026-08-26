@@ -34,8 +34,18 @@ class ProgramStep {
   int get hashCode => Object.hash(op, operand);
 
   @override
-  String toString() =>
-      operand == null ? op.name : '${op.name}($operand)';
+  String toString() => operand == null ? op.name : '${op.name}($operand)';
+
+  /// Display text for a program editor's step list, e.g. "7", "STO 01",
+  /// "GTO 12", "SIN".
+  String get mnemonic {
+    if (op == Opcode.digit) return '$operand';
+    if (operand != null) {
+      final n = operand!.toString().padLeft(2, '0');
+      return '${opcodeLabel(op)} $n';
+    }
+    return opcodeLabel(op);
+  }
 }
 
 /// A named, ordered list of [ProgramStep]s — a saved keystroke program.
