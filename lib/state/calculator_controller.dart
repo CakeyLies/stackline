@@ -5,6 +5,7 @@ import '../engine/display.dart';
 import '../engine/engine.dart';
 import '../model/display_style.dart';
 import '../model/theme.dart';
+import 'functions_controller.dart';
 import 'programs_controller.dart';
 
 enum PendingOp { store, recall }
@@ -16,6 +17,7 @@ class CalculatorController extends ChangeNotifier {
       prefs: _prefs,
       onChanged: _notify,
     );
+    functions = FunctionsController(prefs: _prefs, onChanged: _notify);
     _loadPrefs();
   }
 
@@ -28,6 +30,7 @@ class CalculatorController extends ChangeNotifier {
   final SharedPreferences _prefs;
   final CalculatorEngine engine = CalculatorEngine();
   late final ProgramsController programs;
+  late final FunctionsController functions;
 
   CalcTheme theme = CalcTheme.presets.first;
   DisplayStyle displayStyle = DisplayStyle.classic;
@@ -36,6 +39,7 @@ class CalculatorController extends ChangeNotifier {
 
   bool get shift => _shift;
   bool get isRecordingProgram => programs.isRecording;
+  bool get isSymbolicEditing => functions.isEditing;
 
   void _loadPrefs() {
     theme = CalcTheme.byName(_prefs.getString(_kTheme));

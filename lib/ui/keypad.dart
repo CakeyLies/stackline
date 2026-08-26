@@ -167,6 +167,15 @@ class Keypad extends StatelessWidget {
       return;
     }
 
+    if (controller.isSymbolicEditing) {
+      final opcode = shifted ? key.shiftOpcode : key.opcode;
+      controller.consumeShift();
+      if (opcode != null) {
+        controller.functions.handleKey(opcode, digitValue: key.digitValue);
+      }
+      return;
+    }
+
     controller.consumeShift();
     (shifted ? key.shiftAction! : key.action)();
   }

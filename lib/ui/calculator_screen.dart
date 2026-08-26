@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/calculator_controller.dart';
+import 'functions_screen.dart';
 import 'keypad.dart';
 import 'lcd.dart';
 import 'programs_screen.dart';
@@ -105,11 +106,19 @@ class _TopBar extends StatelessWidget {
                           ProgramsListScreen(controller: controller),
                     ),
                   );
+                case 'functions':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          FunctionsListScreen(controller: controller),
+                    ),
+                  );
               }
             },
             itemBuilder: (context) => const [
               PopupMenuItem(value: 'themes', child: Text('Themes')),
               PopupMenuItem(value: 'programs', child: Text('Programs')),
+              PopupMenuItem(value: 'functions', child: Text('Functions')),
             ],
           ),
         ],

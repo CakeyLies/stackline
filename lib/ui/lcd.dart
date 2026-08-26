@@ -21,6 +21,7 @@ class Lcd extends StatelessWidget {
       if (controller.pendingLabel.isNotEmpty) controller.pendingLabel,
       if (controller.shift) 'SHIFT',
       if (controller.isRecordingProgram) 'REC',
+      if (controller.isSymbolicEditing) 'f(x)',
     ];
 
     final dim = colors.lit.withValues(alpha: 0.62);
