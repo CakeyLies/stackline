@@ -141,6 +141,63 @@ void main() {
     });
   });
 
+  group('conditional tests', () {
+    test('x vs 0', () {
+      final e = CalculatorEngine();
+      e.digit(0);
+      expect(e.testXEqual0(), isTrue);
+      expect(e.testXNotEqual0(), isFalse);
+      expect(e.testXGreaterOrEqual0(), isTrue);
+      expect(e.testXLessOrEqual0(), isTrue);
+
+      e.clearX();
+      e.digit(5);
+      expect(e.testXGreater0(), isTrue);
+      expect(e.testXLess0(), isFalse);
+
+      e.clearX();
+      e.digit(5);
+      e.changeSign();
+      expect(e.testXLess0(), isTrue);
+      expect(e.testXGreater0(), isFalse);
+    });
+
+    test('x vs y', () {
+      final e = CalculatorEngine();
+      e.digit(3);
+      e.enter();
+      e.digit(5);
+      // y=3, x=5
+      expect(e.testXGreaterY(), isTrue);
+      expect(e.testXLessY(), isFalse);
+      expect(e.testXEqualY(), isFalse);
+
+      e.clearX();
+      e.digit(3);
+      expect(e.testXEqualY(), isTrue);
+      expect(e.testXGreaterOrEqualY(), isTrue);
+      expect(e.testXLessOrEqualY(), isTrue);
+    });
+
+    test('tests do not mutate the stack', () {
+      final e = CalculatorEngine();
+      e.digit(3);
+      e.enter();
+      e.digit(5);
+      e.testXGreaterY();
+      expect(e.x, Decimal.parse('5'));
+      expect(e.y, Decimal.parse('3'));
+    });
+
+    test('tests commit pending entry first', () {
+      final e = CalculatorEngine();
+      e.digit(7);
+      // entry is still "active" (not committed) here — the test must see it.
+      expect(e.testXEqual0(), isFalse);
+      expect(e.testXGreater0(), isTrue);
+    });
+  });
+
   group('formatting', () {
     test('FIX 4', () {
       expect(formatDecimal(Decimal.parse('5'), DisplayMode.fix, 4), '5.0000');

@@ -234,6 +234,69 @@ class CalculatorEngine {
     _stackLiftEnabled = false;
   }
 
+  // ---- conditional tests (for keystroke programs) ----
+  // Non-destructive: commit any pending entry so a just-typed digit is
+  // considered, but never mutate the stack (unlike _binary/_unary).
+  bool testXEqual0() {
+    _commitIfNeeded();
+    return x == Decimal.zero;
+  }
+
+  bool testXNotEqual0() {
+    _commitIfNeeded();
+    return x != Decimal.zero;
+  }
+
+  bool testXGreater0() {
+    _commitIfNeeded();
+    return x > Decimal.zero;
+  }
+
+  bool testXLess0() {
+    _commitIfNeeded();
+    return x < Decimal.zero;
+  }
+
+  bool testXGreaterOrEqual0() {
+    _commitIfNeeded();
+    return x >= Decimal.zero;
+  }
+
+  bool testXLessOrEqual0() {
+    _commitIfNeeded();
+    return x <= Decimal.zero;
+  }
+
+  bool testXEqualY() {
+    _commitIfNeeded();
+    return x == y;
+  }
+
+  bool testXNotEqualY() {
+    _commitIfNeeded();
+    return x != y;
+  }
+
+  bool testXGreaterY() {
+    _commitIfNeeded();
+    return x > y;
+  }
+
+  bool testXLessY() {
+    _commitIfNeeded();
+    return x < y;
+  }
+
+  bool testXGreaterOrEqualY() {
+    _commitIfNeeded();
+    return x >= y;
+  }
+
+  bool testXLessOrEqualY() {
+    _commitIfNeeded();
+    return x <= y;
+  }
+
   // ---- memory ----
   void store(int n) {
     _clearError();
