@@ -8,7 +8,7 @@ import '../engine/program_engine.dart';
 import '../model/opcode.dart';
 import '../model/program.dart';
 
-enum _PendingRegisterOp { store, recall }
+enum _PendingKind { store, recall, lbl, gto, gsb }
 
 /// Keystroke-program recording, storage, and execution.
 ///
@@ -42,13 +42,27 @@ class ProgramsController extends ChangeNotifier {
   bool isRecording = false;
   String? lastRunError;
 
-  _PendingRegisterOp? _pendingRegister;
+  /// The step new keys are inserted after (null = insert at the end). Set by
+  /// tapping a step in the editor's list, mirroring a real HP-41's
+  /// current-line pointer.
+  int? selectedIndex;
 
-  /// True right after STO/RCL is tapped while recording, awaiting the
-  /// register digit — mirrors the live calculator's STO/RCL two-tap flow,
-  /// kept fully separate from [CalculatorController.pending] so recording
-  /// can never leak a stale "STO" indicator into live calculator use.
-  bool get awaitingRegister => _pendingRegister != null;
+  _PendingKind? _pendingKind;
+  String _pendingDigits = '';
+
+  /// A short prompt for the editor to show while awaiting STO/RCL's
+  /// register digit or LBL/GTO/GSB's 2-digit label — e.g. "GTO _5",
+  /// completed digit-by-digit. Kept fully separate from
+  /// [CalculatorController.pending] so recording can never leak a stale
+  /// STO/RCL indicator into live calculator use.
+  String? get pendingPrompt => switch (_pendingKind) {
+    _PendingKind.store => 'STO _',
+    _PendingKind.recall => 'RCL _',
+    _PendingKind.lbl => 'LBL ${_pendingDigits.padRight(2, '_')}',
+    _PendingKind.gto => 'GTO ${_pendingDigits.padRight(2, '_')}',
+    _PendingKind.gsb => 'GSB ${_pendingDigits.padRight(2, '_')}',
+    null => null,
+  };
 
   void _load() {
     final raw = _prefs.getString(_kPrograms);
@@ -80,7 +94,8 @@ class ProgramsController extends ChangeNotifier {
     current = Program(name: name, steps: const []);
     draftSteps = [];
     isRecording = false;
-    _pendingRegister = null;
+    selectedIndex = null;
+    _cancelPending();
     _notifyOnly();
   }
 
@@ -88,7 +103,8 @@ class ProgramsController extends ChangeNotifier {
     current = p;
     draftSteps = List.of(p.steps);
     isRecording = false;
-    _pendingRegister = null;
+    selectedIndex = null;
+    _cancelPending();
     _notifyOnly();
   }
 
@@ -96,7 +112,8 @@ class ProgramsController extends ChangeNotifier {
     current = null;
     draftSteps = [];
     isRecording = false;
-    _pendingRegister = null;
+    selectedIndex = null;
+    _cancelPending();
     _notifyOnly();
   }
 
@@ -108,46 +125,110 @@ class ProgramsController extends ChangeNotifier {
 
   void stopRecording() {
     isRecording = false;
-    _pendingRegister = null;
+    _cancelPending();
     _notifyOnly();
   }
 
-  /// Appends the tapped key as a program step. STO/RCL are two taps on the
-  /// real keypad (press STO, then a digit for the register) — composed here
-  /// into one [ProgramStep] rather than recording a meaningless bare "STO"
-  /// line followed by a "digit" line.
+  void _cancelPending() {
+    _pendingKind = null;
+    _pendingDigits = '';
+  }
+
+  /// Selects the current-line pointer — new steps are inserted right after
+  /// it instead of always appended at the end. Pass null to point past the
+  /// end (append).
+  void selectStep(int? index) {
+    selectedIndex = index;
+    _notifyOnly();
+  }
+
+  void _appendStep(ProgramStep step) {
+    final insertAt =
+        (selectedIndex == null || selectedIndex! >= draftSteps.length)
+        ? draftSteps.length
+        : selectedIndex! + 1;
+    draftSteps = [
+      ...draftSteps.sublist(0, insertAt),
+      step,
+      ...draftSteps.sublist(insertAt),
+    ];
+    selectedIndex = insertAt;
+  }
+
+  /// Appends the tapped key as a program step (inserted after
+  /// [selectedIndex], see [_appendStep]).
+  ///
+  /// STO/RCL are two taps on the real keypad (press STO, then a digit for
+  /// the register); LBL/GTO/GSB are a press plus exactly two digits (labels
+  /// are always 00-99, matching the HP-41 convention) — both composed here
+  /// into one [ProgramStep] rather than recording meaningless bare lines.
+  /// Any non-digit key while an operand is pending cancels it rather than
+  /// guessing what the user meant.
   void recordKey(Opcode op, {int? digitValue}) {
     if (!isRecording) return;
 
-    if (_pendingRegister != null) {
-      if (op == Opcode.digit && digitValue != null) {
-        final regOp = _pendingRegister == _PendingRegisterOp.store
-            ? Opcode.store
-            : Opcode.recall;
-        draftSteps = [...draftSteps, ProgramStep(regOp, operand: digitValue)];
+    if (_pendingKind != null) {
+      if (op != Opcode.digit || digitValue == null) {
+        _cancelPending();
+        _notifyOnly();
+        return;
       }
-      _pendingRegister = null;
+      switch (_pendingKind!) {
+        case _PendingKind.store:
+        case _PendingKind.recall:
+          final regOp = _pendingKind == _PendingKind.store
+              ? Opcode.store
+              : Opcode.recall;
+          _appendStep(ProgramStep(regOp, operand: digitValue));
+          _cancelPending();
+        case _PendingKind.lbl:
+        case _PendingKind.gto:
+        case _PendingKind.gsb:
+          _pendingDigits += digitValue.toString();
+          if (_pendingDigits.length >= 2) {
+            final controlOp = switch (_pendingKind!) {
+              _PendingKind.lbl => Opcode.lbl,
+              _PendingKind.gto => Opcode.gto,
+              _PendingKind.gsb => Opcode.gsb,
+              _PendingKind.store ||
+              _PendingKind.recall => throw StateError('unreachable'),
+            };
+            _appendStep(
+              ProgramStep(controlOp, operand: int.parse(_pendingDigits)),
+            );
+            _cancelPending();
+          }
+      }
       _notifyOnly();
       return;
     }
 
-    if (op == Opcode.store) {
-      _pendingRegister = _PendingRegisterOp.store;
-      _notifyOnly();
-      return;
+    switch (op) {
+      case Opcode.store:
+        _pendingKind = _PendingKind.store;
+      case Opcode.recall:
+        _pendingKind = _PendingKind.recall;
+      case Opcode.lbl:
+        _pendingKind = _PendingKind.lbl;
+      case Opcode.gto:
+        _pendingKind = _PendingKind.gto;
+      case Opcode.gsb:
+        _pendingKind = _PendingKind.gsb;
+      default:
+        _appendStep(ProgramStep(op, operand: digitValue));
     }
-    if (op == Opcode.recall) {
-      _pendingRegister = _PendingRegisterOp.recall;
-      _notifyOnly();
-      return;
-    }
-
-    draftSteps = [...draftSteps, ProgramStep(op, operand: digitValue)];
     _notifyOnly();
   }
 
   void deleteStepAt(int index) {
     draftSteps = List.of(draftSteps)..removeAt(index);
+    if (selectedIndex != null) {
+      if (selectedIndex == index) {
+        selectedIndex = index == 0 ? null : index - 1;
+      } else if (selectedIndex! > index) {
+        selectedIndex = selectedIndex! - 1;
+      }
+    }
     _notifyOnly();
   }
 

@@ -6,7 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stackline/model/opcode.dart';
 import 'package:stackline/model/program.dart';
 import 'package:stackline/state/calculator_controller.dart';
+import 'package:stackline/ui/keypad.dart';
 import 'package:stackline/ui/programs_screen.dart';
+
+/// The step list can show a mnemonic identical to a keypad button (e.g. a
+/// recorded "1" step next to the "1" digit key) — scope to the real Keypad
+/// so repeated digits in a program don't make `find.text` ambiguous.
+Finder _key(String label) =>
+    find.descendant(of: find.byType(Keypad), matching: find.text(label));
 
 void main() {
   testWidgets(
@@ -125,5 +132,125 @@ void main() {
 
     // The live calculator's own pending flow must be untouched by recording.
     expect(controller.pending, isNull);
+  });
+
+  testWidgets(
+    'author a real GTO loop through the UI (mini-keypad + real keypad) and run it',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = CalculatorController(prefs);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ProgramsListScreen(controller: controller)),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Countdown');
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Record'));
+      await tester.pump();
+
+      // 3 ENTER: X=3, Y=3 (committed via ENTER, so the loop body's digit
+      // entry below starts fresh instead of appending).
+      await tester.tap(_key('3'));
+      await tester.pump();
+      await tester.tap(_key('ENTER'));
+      await tester.pump();
+
+      // LBL 01 via the control-flow mini-keypad + two real digit taps.
+      await tester.tap(find.text(opcodeLabel(Opcode.lbl)));
+      await tester.pump();
+      await tester.tap(_key('0'));
+      await tester.pump();
+      await tester.tap(_key('1'));
+      await tester.pump();
+
+      // 1 -  (subtract 1 from X each pass)
+      await tester.tap(_key('1'));
+      await tester.pump();
+      await tester.tap(_key('−'));
+      await tester.pump();
+
+      // X>0? then GTO 01 -- both from the control-flow mini-keypad.
+      await tester.tap(find.text(opcodeLabel(Opcode.xGt0)));
+      await tester.pump();
+      await tester.tap(find.text(opcodeLabel(Opcode.gto)));
+      await tester.pump();
+      await tester.tap(_key('0'));
+      await tester.pump();
+      await tester.tap(_key('1'));
+      await tester.pump();
+
+      await tester.tap(find.text('Stop recording'));
+      await tester.pump();
+
+      expect(controller.programs.draftSteps, const [
+        ProgramStep(Opcode.digit, operand: 3),
+        ProgramStep(Opcode.enter),
+        ProgramStep(Opcode.lbl, operand: 1),
+        ProgramStep(Opcode.digit, operand: 1),
+        ProgramStep(Opcode.subtract),
+        ProgramStep(Opcode.xGt0),
+        ProgramStep(Opcode.gto, operand: 1),
+      ]);
+
+      await tester.tap(find.byIcon(Icons.save_outlined));
+      await tester.pump();
+
+      final error = controller.programs.run(controller.programs.saved.single);
+      expect(error, isNull);
+      expect(controller.engine.x, Decimal.zero);
+    },
+  );
+
+  testWidgets('selecting a step inserts new keys after it, not at the end', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final controller = CalculatorController(prefs);
+
+    await tester.pumpWidget(
+      MaterialApp(home: ProgramsListScreen(controller: controller)),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Insert');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Record'));
+    await tester.pump();
+
+    await tester.tap(_key('1'));
+    await tester.pump();
+    await tester.tap(_key('2'));
+    await tester.pump();
+
+    expect(controller.programs.draftSteps, const [
+      ProgramStep(Opcode.digit, operand: 1),
+      ProgramStep(Opcode.digit, operand: 2),
+    ]);
+
+    // Select the first step ("01  1") and record a new key: it should land
+    // between the two existing steps, not after the second one.
+    controller.programs.selectStep(0);
+    await tester.pump();
+
+    await tester.tap(_key('9'));
+    await tester.pump();
+
+    expect(controller.programs.draftSteps, const [
+      ProgramStep(Opcode.digit, operand: 1),
+      ProgramStep(Opcode.digit, operand: 9),
+      ProgramStep(Opcode.digit, operand: 2),
+    ]);
   });
 }

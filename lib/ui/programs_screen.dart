@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../model/opcode.dart';
 import '../model/program.dart';
 import '../state/calculator_controller.dart';
 import 'keypad.dart';
@@ -183,9 +184,11 @@ class _ProgramTile extends StatelessWidget {
   }
 }
 
-/// v1 straight-line program editor: record/run/save. Control-flow authoring
-/// (LBL/GTO/GSB/RTN + comparison tests) lands in a later phase via a
-/// dedicated mini-keypad alongside this same step list.
+/// Program editor: record/run/save, with a current-line pointer (tap a step
+/// to select it — new keys are inserted right after it) and a dedicated
+/// mini-keypad for control flow (LBL/GTO/GSB/RTN, 12 comparison tests) that
+/// has no live-calculator equivalent, alongside the real [Keypad] reused
+/// unmodified for ordinary keys.
 ///
 /// Deliberately has no [Lcd] — while recording, a live numeric display would
 /// be misleading, since nothing is actually computed per keystroke.
@@ -222,92 +225,136 @@ class ProgramEditorScreen extends StatelessWidget {
             ),
           ],
         ),
-        body: ListenableBuilder(
-          listenable: controller.programs,
-          builder: (context, _) {
-            final steps = controller.programs.draftSteps;
-            final recording = controller.programs.isRecording;
-            return Column(
-              children: [
-                Expanded(
-                  child: steps.isEmpty
-                      ? Center(
-                          child: Text(
-                            recording ? 'Recording — tap keys below' : 'No steps yet. Tap Record, then use the keypad.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: t.keyText.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: steps.length,
-                          itemBuilder: (context, index) {
-                            final step = steps[index];
-                            return ListTile(
-                              dense: true,
-                              leading: Text(
-                                (index + 1).toString().padLeft(2, '0'),
-                                style: TextStyle(
-                                  color: t.keyText.withValues(alpha: 0.5),
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                              title: Text(
-                                step.mnemonic,
-                                style: TextStyle(
-                                  color: t.keyText,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                              trailing: recording
-                                  ? null
-                                  : IconButton(
-                                      icon: const Icon(Icons.delete_outline),
-                                      onPressed: () => controller.programs
-                                          .deleteStepAt(index),
-                                    ),
-                            );
-                          },
-                        ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        if (recording) {
-                          controller.programs.stopRecording();
-                        } else {
-                          controller.programs.startRecording();
-                        }
-                      },
-                      icon: Icon(
-                        recording ? Icons.stop : Icons.fiber_manual_record,
-                      ),
-                      label: Text(recording ? 'Stop recording' : 'Record'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: recording ? Colors.red : t.accent,
-                        foregroundColor: recording
-                            ? Colors.white
-                            : t.accentText,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 320,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Keypad(controller: controller, compact: true),
-                  ),
-                ),
-              ],
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 640;
+            final keypadHeight = compact ? 240.0 : 320.0;
+            final controlHeight = compact ? 108.0 : 140.0;
+            return ListenableBuilder(
+              listenable: controller.programs,
+              builder: (context, _) => _buildBody(
+                context,
+                compact: compact,
+                keypadHeight: keypadHeight,
+                controlHeight: controlHeight,
+              ),
             );
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context, {
+    required bool compact,
+    required double keypadHeight,
+    required double controlHeight,
+  }) {
+    final t = controller.theme;
+    final programs = controller.programs;
+    final steps = programs.draftSteps;
+    final recording = programs.isRecording;
+    final selected = programs.selectedIndex;
+    final prompt = programs.pendingPrompt;
+    return Column(
+      children: [
+        Expanded(
+          child: steps.isEmpty
+              ? Center(
+                  child: Text(
+                    recording
+                        ? 'Recording — tap keys below'
+                        : 'No steps yet. Tap Record, then use the keypad.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: t.keyText.withValues(alpha: 0.6)),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: steps.length,
+                  itemBuilder: (context, index) {
+                    final step = steps[index];
+                    final isSelected = index == selected;
+                    return Material(
+                      color: isSelected
+                          ? t.accent.withValues(alpha: 0.18)
+                          : Colors.transparent,
+                      child: ListTile(
+                        dense: true,
+                        onTap: () => programs.selectStep(index),
+                        leading: Text(
+                          (index + 1).toString().padLeft(2, '0'),
+                          style: TextStyle(
+                            color: t.keyText.withValues(alpha: 0.5),
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        title: Text(
+                          step.mnemonic,
+                          style: TextStyle(
+                            color: isSelected ? t.accent : t.keyText,
+                            fontFamily: 'monospace',
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => programs.deleteStepAt(index),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        if (prompt != null)
+          Container(
+            width: double.infinity,
+            color: t.accent.withValues(alpha: 0.15),
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+            child: Text(
+              prompt,
+              style: TextStyle(
+                color: t.accent,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () {
+                if (recording) {
+                  programs.stopRecording();
+                } else {
+                  programs.startRecording();
+                }
+              },
+              icon: Icon(recording ? Icons.stop : Icons.fiber_manual_record),
+              label: Text(recording ? 'Stop recording' : 'Record'),
+              style: FilledButton.styleFrom(
+                backgroundColor: recording ? Colors.red : t.accent,
+                foregroundColor: recording ? Colors.white : t.accentText,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          height: controlHeight,
+          child: _ControlFlowKeypad(controller: controller),
+        ),
+        SizedBox(
+          height: keypadHeight,
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Keypad(controller: controller, compact: compact),
+          ),
+        ),
+      ],
     );
   }
 
@@ -320,5 +367,72 @@ class ProgramEditorScreen extends StatelessWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(error ?? 'x = ${controller.xText}')));
+  }
+}
+
+/// Control-flow keys (LBL/GTO/GSB/RTN, 12 comparison tests) with no
+/// live-calculator equivalent, so they live here rather than on the main
+/// [Keypad] — recording only, via [ProgramsController.recordKey].
+class _ControlFlowKeypad extends StatelessWidget {
+  const _ControlFlowKeypad({required this.controller});
+
+  final CalculatorController controller;
+
+  static const _rows = [
+    [Opcode.lbl, Opcode.gto, Opcode.gsb, Opcode.rtn],
+    [Opcode.xEq0, Opcode.xNe0, Opcode.xGt0, Opcode.xLt0],
+    [Opcode.xGe0, Opcode.xLe0, Opcode.xEqY, Opcode.xNeY],
+    [Opcode.xGtY, Opcode.xLtY, Opcode.xGeY, Opcode.xLeY],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final t = controller.theme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        children: [
+          for (final row in _rows)
+            Expanded(
+              child: Row(
+                children: [
+                  for (final op in row)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Material(
+                          color: t.keyAltBackground,
+                          borderRadius: BorderRadius.circular(8),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => controller.programs.recordKey(op),
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  child: Text(
+                                    opcodeLabel(op),
+                                    style: TextStyle(
+                                      color: t.keyAltText,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
