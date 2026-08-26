@@ -128,4 +128,43 @@ void main() {
       }
     },
   );
+
+  testWidgets('landscape unfolds shifted keys instead of using SHIFT', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final controller = CalculatorController(prefs);
+
+    tester.view.physicalSize = const Size(800, 400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(RpnEdgeApp(controller: controller));
+    await tester.pump();
+
+    // No SHIFT toggle in landscape.
+    expect(find.text('SHIFT'), findsNothing);
+
+    // Both the primary and previously-shifted labels exist as their own keys.
+    expect(find.text('LOG'), findsOneWidget);
+    expect(find.text('10ˣ'), findsOneWidget);
+    expect(find.text('SIN'), findsOneWidget);
+    expect(find.text('ASIN'), findsOneWidget);
+    expect(find.text('STO'), findsOneWidget);
+    expect(find.text('RCL'), findsOneWidget);
+
+    // yˣ is directly tappable with no shift press needed: 2 ENTER 3 yˣ = 8.
+    await tester.tap(find.text('2'));
+    await tester.pump();
+    await tester.tap(find.text('ENTER'));
+    await tester.pump();
+    await tester.tap(find.text('3'));
+    await tester.pump();
+    await tester.tap(find.text('yˣ'));
+    await tester.pump();
+
+    expect(find.text('8.0000'), findsOneWidget);
+  });
 }

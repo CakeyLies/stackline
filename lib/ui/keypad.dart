@@ -30,10 +30,16 @@ class _Key {
 }
 
 class Keypad extends StatelessWidget {
-  const Keypad({super.key, required this.controller, required this.compact});
+  const Keypad({
+    super.key,
+    required this.controller,
+    required this.compact,
+    this.landscape = false,
+  });
 
   final CalculatorController controller;
   final bool compact;
+  final bool landscape;
 
   void _onKey(_Key key) {
     if (key.kind == KeyKind.shift) {
@@ -45,67 +51,171 @@ class Keypad extends StatelessWidget {
     (shifted ? key.shiftAction! : key.action)();
   }
 
+  List<List<_Key>> _foldedLayout(CalculatorController c) => [
+    [
+      _Key(
+        '1/x',
+        KeyKind.alt,
+        c.reciprocal,
+        shiftLabel: 'yˣ',
+        shiftAction: c.power,
+      ),
+      _Key('√x', KeyKind.alt, c.sqrt, shiftLabel: 'x√y', shiftAction: c.root),
+      _Key(
+        'x²',
+        KeyKind.alt,
+        c.square,
+        shiftLabel: 'n!',
+        shiftAction: c.factorial,
+      ),
+      _Key(
+        'LOG',
+        KeyKind.alt,
+        c.log10,
+        shiftLabel: '10ˣ',
+        shiftAction: c.tenToX,
+      ),
+      _Key('LN', KeyKind.alt, c.ln, shiftLabel: 'eˣ', shiftAction: c.eToX),
+    ],
+    [
+      _Key('SIN', KeyKind.alt, c.sin, shiftLabel: 'ASIN', shiftAction: c.asin),
+      _Key('COS', KeyKind.alt, c.cos, shiftLabel: 'ACOS', shiftAction: c.acos),
+      _Key('TAN', KeyKind.alt, c.tan, shiftLabel: 'ATAN', shiftAction: c.atan),
+      _Key(
+        '%',
+        KeyKind.alt,
+        c.percent,
+        shiftLabel: 'Δ%',
+        shiftAction: c.percentChange,
+      ),
+      _Key('π', KeyKind.alt, c.pushPi, shiftLabel: 'e', shiftAction: c.pushE),
+    ],
+    [
+      _Key(
+        'STO',
+        KeyKind.alt,
+        c.pressStore,
+        shiftLabel: 'RCL',
+        shiftAction: c.pressRecall,
+      ),
+      _Key('', KeyKind.alt, c.swapXY, icon: KeyIcon.swap),
+      _Key(
+        'R',
+        KeyKind.alt,
+        c.rollDown,
+        icon: KeyIcon.down,
+        shiftIcon: KeyIcon.up,
+        shiftAction: c.rollUp,
+      ),
+      _Key('LASTx', KeyKind.alt, c.lastXRecall),
+      _Key('CLx', KeyKind.alt, c.clearX),
+    ],
+    [
+      _Key('7', KeyKind.normal, () => c.digit(7)),
+      _Key('8', KeyKind.normal, () => c.digit(8)),
+      _Key('9', KeyKind.normal, () => c.digit(9)),
+      _Key('÷', KeyKind.alt, c.divide),
+      _Key('×', KeyKind.alt, c.multiply),
+    ],
+    [
+      _Key('4', KeyKind.normal, () => c.digit(4)),
+      _Key('5', KeyKind.normal, () => c.digit(5)),
+      _Key('6', KeyKind.normal, () => c.digit(6)),
+      _Key('−', KeyKind.alt, c.subtract),
+      _Key('+', KeyKind.alt, c.add),
+    ],
+    [
+      _Key('1', KeyKind.normal, () => c.digit(1)),
+      _Key('2', KeyKind.normal, () => c.digit(2)),
+      _Key('3', KeyKind.normal, () => c.digit(3)),
+      _Key('.', KeyKind.normal, c.decimalPoint),
+      _Key('E', KeyKind.normal, c.enterExponent),
+    ],
+    [
+      _Key('0', KeyKind.normal, () => c.digit(0), flex: 2),
+      _Key('CHS', KeyKind.normal, c.changeSign),
+      _Key('DEL', KeyKind.alt, c.backspace),
+      _Key('SHIFT', KeyKind.shift, c.pressShift),
+    ],
+    [_Key('ENTER', KeyKind.accent, c.enter, flex: 5)],
+  ];
+
+  /// Landscape has enough width to give every shifted function its own key
+  /// instead of overloading a SHIFT toggle — same row count as the folded
+  /// layout, just wider rows where a key used to carry two functions.
+  List<List<_Key>> _unfoldedLayout(CalculatorController c) => [
+    [
+      _Key('1/x', KeyKind.alt, c.reciprocal),
+      _Key('yˣ', KeyKind.alt, c.power),
+      _Key('√x', KeyKind.alt, c.sqrt),
+      _Key('x√y', KeyKind.alt, c.root),
+      _Key('x²', KeyKind.alt, c.square),
+      _Key('n!', KeyKind.alt, c.factorial),
+      _Key('LOG', KeyKind.alt, c.log10),
+      _Key('10ˣ', KeyKind.alt, c.tenToX),
+      _Key('LN', KeyKind.alt, c.ln),
+      _Key('eˣ', KeyKind.alt, c.eToX),
+    ],
+    [
+      _Key('SIN', KeyKind.alt, c.sin),
+      _Key('ASIN', KeyKind.alt, c.asin),
+      _Key('COS', KeyKind.alt, c.cos),
+      _Key('ACOS', KeyKind.alt, c.acos),
+      _Key('TAN', KeyKind.alt, c.tan),
+      _Key('ATAN', KeyKind.alt, c.atan),
+      _Key('%', KeyKind.alt, c.percent),
+      _Key('Δ%', KeyKind.alt, c.percentChange),
+      _Key('π', KeyKind.alt, c.pushPi),
+      _Key('e', KeyKind.alt, c.pushE),
+    ],
+    [
+      _Key('STO', KeyKind.alt, c.pressStore),
+      _Key('RCL', KeyKind.alt, c.pressRecall),
+      _Key('', KeyKind.alt, c.swapXY, icon: KeyIcon.swap),
+      _Key('R', KeyKind.alt, c.rollDown, icon: KeyIcon.down),
+      _Key('R', KeyKind.alt, c.rollUp, icon: KeyIcon.up),
+      _Key('LASTx', KeyKind.alt, c.lastXRecall),
+      _Key('CLx', KeyKind.alt, c.clearX),
+    ],
+    [
+      _Key('7', KeyKind.normal, () => c.digit(7)),
+      _Key('8', KeyKind.normal, () => c.digit(8)),
+      _Key('9', KeyKind.normal, () => c.digit(9)),
+      _Key('÷', KeyKind.alt, c.divide),
+      _Key('×', KeyKind.alt, c.multiply),
+    ],
+    [
+      _Key('4', KeyKind.normal, () => c.digit(4)),
+      _Key('5', KeyKind.normal, () => c.digit(5)),
+      _Key('6', KeyKind.normal, () => c.digit(6)),
+      _Key('−', KeyKind.alt, c.subtract),
+      _Key('+', KeyKind.alt, c.add),
+    ],
+    [
+      _Key('1', KeyKind.normal, () => c.digit(1)),
+      _Key('2', KeyKind.normal, () => c.digit(2)),
+      _Key('3', KeyKind.normal, () => c.digit(3)),
+      _Key('.', KeyKind.normal, c.decimalPoint),
+      _Key('E', KeyKind.normal, c.enterExponent),
+    ],
+    [
+      _Key('0', KeyKind.normal, () => c.digit(0), flex: 2),
+      _Key('CHS', KeyKind.normal, c.changeSign),
+      _Key('DEL', KeyKind.alt, c.backspace),
+    ],
+    [_Key('ENTER', KeyKind.accent, c.enter, flex: 5)],
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final c = controller;
-    final layout = <List<_Key>>[
-      [
-        _Key('1/x', KeyKind.alt, c.reciprocal, shiftLabel: 'yˣ', shiftAction: c.power),
-        _Key('√x', KeyKind.alt, c.sqrt, shiftLabel: 'x√y', shiftAction: c.root),
-        _Key('x²', KeyKind.alt, c.square, shiftLabel: 'n!', shiftAction: c.factorial),
-        _Key('LOG', KeyKind.alt, c.log10, shiftLabel: '10ˣ', shiftAction: c.tenToX),
-        _Key('LN', KeyKind.alt, c.ln, shiftLabel: 'eˣ', shiftAction: c.eToX),
-      ],
-      [
-        _Key('SIN', KeyKind.alt, c.sin, shiftLabel: 'ASIN', shiftAction: c.asin),
-        _Key('COS', KeyKind.alt, c.cos, shiftLabel: 'ACOS', shiftAction: c.acos),
-        _Key('TAN', KeyKind.alt, c.tan, shiftLabel: 'ATAN', shiftAction: c.atan),
-        _Key('%', KeyKind.alt, c.percent, shiftLabel: 'Δ%', shiftAction: c.percentChange),
-        _Key('π', KeyKind.alt, c.pushPi, shiftLabel: 'e', shiftAction: c.pushE),
-      ],
-      [
-        _Key('STO', KeyKind.alt, c.pressStore, shiftLabel: 'RCL', shiftAction: c.pressRecall),
-        _Key('', KeyKind.alt, c.swapXY, icon: KeyIcon.swap),
-        _Key('R', KeyKind.alt, c.rollDown, icon: KeyIcon.down, shiftIcon: KeyIcon.up, shiftAction: c.rollUp),
-        _Key('LASTx', KeyKind.alt, c.lastXRecall),
-        _Key('CLx', KeyKind.alt, c.clearX),
-      ],
-      [
-        _Key('7', KeyKind.normal, () => c.digit(7)),
-        _Key('8', KeyKind.normal, () => c.digit(8)),
-        _Key('9', KeyKind.normal, () => c.digit(9)),
-        _Key('÷', KeyKind.alt, c.divide),
-        _Key('×', KeyKind.alt, c.multiply),
-      ],
-      [
-        _Key('4', KeyKind.normal, () => c.digit(4)),
-        _Key('5', KeyKind.normal, () => c.digit(5)),
-        _Key('6', KeyKind.normal, () => c.digit(6)),
-        _Key('−', KeyKind.alt, c.subtract),
-        _Key('+', KeyKind.alt, c.add),
-      ],
-      [
-        _Key('1', KeyKind.normal, () => c.digit(1)),
-        _Key('2', KeyKind.normal, () => c.digit(2)),
-        _Key('3', KeyKind.normal, () => c.digit(3)),
-        _Key('.', KeyKind.normal, c.decimalPoint),
-        _Key('E', KeyKind.normal, c.enterExponent),
-      ],
-      [
-        _Key('0', KeyKind.normal, () => c.digit(0), flex: 2),
-        _Key('CHS', KeyKind.normal, c.changeSign),
-        _Key('DEL', KeyKind.alt, c.backspace),
-        _Key('SHIFT', KeyKind.shift, c.pressShift),
-      ],
-      [
-        _Key('ENTER', KeyKind.accent, c.enter, flex: 5),
-      ],
-    ];
+    final layout = landscape
+        ? _unfoldedLayout(controller)
+        : _foldedLayout(controller);
 
     final padding = compact ? 2.5 : 5.0;
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
+        constraints: BoxConstraints(maxWidth: landscape ? 920 : 460),
         child: Column(
           children: [
             for (final row in layout)
@@ -188,15 +298,17 @@ class _KeyButton extends StatelessWidget {
       KeyIcon.down => _rollContent(label, KeyIcon.down, fg, fontSize),
       KeyIcon.up => _rollContent(label, KeyIcon.up, fg, fontSize),
       null => Text(
-          label,
-          maxLines: 1,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: spec.kind == KeyKind.accent ? FontWeight.bold : FontWeight.w600,
-            color: fg,
-            letterSpacing: 0.2,
-          ),
+        label,
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: spec.kind == KeyKind.accent
+              ? FontWeight.bold
+              : FontWeight.w600,
+          color: fg,
+          letterSpacing: 0.2,
         ),
+      ),
     };
 
     Widget? hint;
@@ -214,7 +326,9 @@ class _KeyButton extends StatelessWidget {
         hint = SizedBox(
           width: compact ? 9 : 11,
           height: compact ? 10 : 12,
-          child: CustomPaint(painter: _ArrowPainter(theme.accent, spec.shiftIcon!)),
+          child: CustomPaint(
+            painter: _ArrowPainter(theme.accent, spec.shiftIcon!),
+          ),
         );
       }
     }
@@ -230,7 +344,9 @@ class _KeyButton extends StatelessWidget {
               ? null
               : BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: glow, blurRadius: 16, spreadRadius: 1)],
+                  boxShadow: [
+                    BoxShadow(color: glow, blurRadius: 16, spreadRadius: 1),
+                  ],
                 ),
           child: Material(
             color: bg,
@@ -269,7 +385,11 @@ class _KeyButton extends StatelessWidget {
   Widget _swapContent(Color color, double fontSize) {
     final arrowW = compact ? 20.0 : 26.0;
     final arrowH = compact ? 16.0 : 20.0;
-    final textStyle = TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600, color: color);
+    final textStyle = TextStyle(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w600,
+      color: color,
+    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -287,8 +407,17 @@ class _KeyButton extends StatelessWidget {
     );
   }
 
-  Widget _rollContent(String label, KeyIcon icon, Color color, double fontSize) {
-    final textStyle = TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600, color: color);
+  Widget _rollContent(
+    String label,
+    KeyIcon icon,
+    Color color,
+    double fontSize,
+  ) {
+    final textStyle = TextStyle(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w600,
+      color: color,
+    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -322,12 +451,32 @@ class _ArrowPainter extends CustomPainter {
 
     switch (icon) {
       case KeyIcon.swap:
-        _arrow(canvas, paint, Offset(size.width * 0.08, size.height * 0.2), Offset(size.width * 0.92, size.height * 0.2));
-        _arrow(canvas, paint, Offset(size.width * 0.92, size.height * 0.8), Offset(size.width * 0.08, size.height * 0.8));
+        _arrow(
+          canvas,
+          paint,
+          Offset(size.width * 0.08, size.height * 0.2),
+          Offset(size.width * 0.92, size.height * 0.2),
+        );
+        _arrow(
+          canvas,
+          paint,
+          Offset(size.width * 0.92, size.height * 0.8),
+          Offset(size.width * 0.08, size.height * 0.8),
+        );
       case KeyIcon.down:
-        _arrow(canvas, paint, Offset(size.width * 0.5, size.height * 0.12), Offset(size.width * 0.5, size.height * 0.88));
+        _arrow(
+          canvas,
+          paint,
+          Offset(size.width * 0.5, size.height * 0.12),
+          Offset(size.width * 0.5, size.height * 0.88),
+        );
       case KeyIcon.up:
-        _arrow(canvas, paint, Offset(size.width * 0.5, size.height * 0.88), Offset(size.width * 0.5, size.height * 0.12));
+        _arrow(
+          canvas,
+          paint,
+          Offset(size.width * 0.5, size.height * 0.88),
+          Offset(size.width * 0.5, size.height * 0.12),
+        );
     }
   }
 

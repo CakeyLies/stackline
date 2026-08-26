@@ -18,46 +18,9 @@ class CalculatorScreen extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final isLandscape = constraints.maxWidth > constraints.maxHeight;
             final compact =
                 constraints.maxWidth < 340 || constraints.maxHeight < 520;
-            final isLandscape = constraints.maxWidth > constraints.maxHeight;
-
-            if (isLandscape) {
-              final lcdWidth = (constraints.maxWidth * (compact ? 0.4 : 0.34))
-                  .clamp(200.0, 340.0);
-              return Column(
-                children: [
-                  _TopBar(controller: controller),
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: lcdWidth,
-                          child: RepaintBoundary(
-                            child: Lcd(
-                              controller: controller,
-                              compact: compact,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.all(compact ? 4 : 8),
-                            child: RepaintBoundary(
-                              child: Keypad(
-                                controller: controller,
-                                compact: compact,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }
 
             return Column(
               children: [
@@ -69,7 +32,11 @@ class CalculatorScreen extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.all(compact ? 4 : 8),
                     child: RepaintBoundary(
-                      child: Keypad(controller: controller, compact: compact),
+                      child: Keypad(
+                        controller: controller,
+                        compact: compact,
+                        landscape: isLandscape,
+                      ),
                     ),
                   ),
                 ),
