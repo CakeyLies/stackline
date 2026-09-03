@@ -21,8 +21,21 @@ class CalculatorScreen extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isLandscape = constraints.maxWidth > constraints.maxHeight;
-            final compact =
-                constraints.maxWidth < 340 || constraints.maxHeight < 520;
+            // "Compact" means the window is tight on its *short* side (a
+            // narrow phone, or a small pop-up view) or its *long* side. In
+            // landscape those map to maxHeight/maxWidth respectively — the
+            // reverse of portrait — so pick the pair by orientation instead
+            // of always testing maxWidth/maxHeight. Testing them unswapped
+            // made every landscape phone register as compact (its short
+            // side, maxHeight, is almost always under the portrait-tuned
+            // 520 threshold) regardless of how much width was available.
+            final shortSide = isLandscape
+                ? constraints.maxHeight
+                : constraints.maxWidth;
+            final longSide = isLandscape
+                ? constraints.maxWidth
+                : constraints.maxHeight;
+            final compact = shortSide < 340 || longSide < 520;
 
             return Column(
               children: [

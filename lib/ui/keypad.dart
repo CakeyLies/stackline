@@ -4,7 +4,7 @@ import '../model/opcode.dart';
 import '../model/theme.dart';
 import '../state/calculator_controller.dart';
 
-enum KeyKind { normal, alt, accent, shift }
+enum KeyKind { normal, alt, accent, shift, operator }
 
 enum KeyIcon { swap, down, up }
 
@@ -208,15 +208,15 @@ class Keypad extends StatelessWidget {
         _digitKey(c, 7),
         _digitKey(c, 8),
         _digitKey(c, 9),
-        _u(s, Opcode.divide, KeyKind.alt),
-        _u(s, Opcode.multiply, KeyKind.alt),
+        _u(s, Opcode.divide, KeyKind.operator),
+        _u(s, Opcode.multiply, KeyKind.operator),
       ],
       [
         _digitKey(c, 4),
         _digitKey(c, 5),
         _digitKey(c, 6),
-        _u(s, Opcode.subtract, KeyKind.alt),
-        _u(s, Opcode.add, KeyKind.alt),
+        _u(s, Opcode.subtract, KeyKind.operator),
+        _u(s, Opcode.add, KeyKind.operator),
       ],
       [
         _digitKey(c, 1),
@@ -235,10 +235,12 @@ class Keypad extends StatelessWidget {
     ];
   }
 
-  /// Landscape has enough width to give every shifted function its own key
-  /// instead of overloading a SHIFT toggle — same row count as the folded
-  /// layout, just wider rows where a key used to carry two functions.
-  List<List<_Key>> _unfoldedLayout(CalculatorController c) {
+  /// Landscape's scientific-function rows: unfolded (every shifted function
+  /// gets its own key instead of overloading a SHIFT toggle) and shown as a
+  /// side panel next to the main pad, since landscape phones are wide but
+  /// short — stacking all 8 portrait rows top-to-bottom there squashes every
+  /// key down to a sliver.
+  List<List<_Key>> _functionRows(CalculatorController c) {
     final s = _specsFor(c);
     return [
       [
@@ -274,19 +276,28 @@ class Keypad extends StatelessWidget {
         _u(s, Opcode.lastX, KeyKind.alt),
         _u(s, Opcode.clearX, KeyKind.alt),
       ],
+    ];
+  }
+
+  /// Landscape's main pad — digits, arithmetic, and ENTER — kept to the same
+  /// 5 rows it would use in portrait so it stays readable in a short window,
+  /// instead of stretching across all 8 stacked rows of the old layout.
+  List<List<_Key>> _digitRows(CalculatorController c) {
+    final s = _specsFor(c);
+    return [
       [
         _digitKey(c, 7),
         _digitKey(c, 8),
         _digitKey(c, 9),
-        _u(s, Opcode.divide, KeyKind.alt),
-        _u(s, Opcode.multiply, KeyKind.alt),
+        _u(s, Opcode.divide, KeyKind.operator),
+        _u(s, Opcode.multiply, KeyKind.operator),
       ],
       [
         _digitKey(c, 4),
         _digitKey(c, 5),
         _digitKey(c, 6),
-        _u(s, Opcode.subtract, KeyKind.alt),
-        _u(s, Opcode.add, KeyKind.alt),
+        _u(s, Opcode.subtract, KeyKind.operator),
+        _u(s, Opcode.add, KeyKind.operator),
       ],
       [
         _digitKey(c, 1),
@@ -304,36 +315,63 @@ class Keypad extends StatelessWidget {
     ];
   }
 
+  Widget _column(List<List<_Key>> layout, double padding) {
+    return Column(
+      children: [
+        for (final row in layout)
+          Expanded(
+            child: Row(
+              children: [
+                for (final key in row)
+                  _KeyButton(
+                    spec: key,
+                    controller: controller,
+                    theme: controller.theme,
+                    compact: compact,
+                    padding: padding,
+                    onPressed: () => _onKey(key),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final layout = landscape
-        ? _unfoldedLayout(controller)
-        : _foldedLayout(controller);
-
     final padding = compact ? 2.5 : 5.0;
+
+    if (landscape) {
+      // Wide-but-short screens get a side panel instead of one tall stack:
+      // function keys (3 rows) to the left, the main digit/operator/ENTER
+      // pad (5 rows) to the right, so neither side is squeezed down to a
+      // sliver the way 8 stacked rows would be in a short window.
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 6,
+                child: _column(_functionRows(controller), padding),
+              ),
+              SizedBox(width: padding * 2),
+              Expanded(
+                flex: 5,
+                child: _column(_digitRows(controller), padding),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: landscape ? 920 : 460),
-        child: Column(
-          children: [
-            for (final row in layout)
-              Expanded(
-                child: Row(
-                  children: [
-                    for (final key in row)
-                      _KeyButton(
-                        spec: key,
-                        controller: controller,
-                        theme: controller.theme,
-                        compact: compact,
-                        padding: padding,
-                        onPressed: () => _onKey(key),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: _column(_foldedLayout(controller), padding),
       ),
     );
   }
@@ -374,6 +412,12 @@ class _KeyButton extends StatelessWidget {
       case KeyKind.accent:
         bg = theme.accent;
         fg = theme.accentText;
+      case KeyKind.operator:
+        bg = Color.alphaBlend(
+          theme.accent.withValues(alpha: 0.28),
+          theme.keyAltBackground,
+        );
+        fg = theme.accent;
       case KeyKind.shift:
         if (controller.shift) {
           bg = theme.accent;
@@ -388,6 +432,7 @@ class _KeyButton extends StatelessWidget {
       KeyKind.normal => compact ? 17 : 22,
       KeyKind.alt => compact ? 12 : 15,
       KeyKind.accent => compact ? 16 : 20,
+      KeyKind.operator => compact ? 20 : 26,
       KeyKind.shift => compact ? 11 : 13,
     };
 
@@ -400,7 +445,8 @@ class _KeyButton extends StatelessWidget {
         maxLines: 1,
         style: TextStyle(
           fontSize: fontSize,
-          fontWeight: spec.kind == KeyKind.accent
+          fontWeight:
+              spec.kind == KeyKind.accent || spec.kind == KeyKind.operator
               ? FontWeight.bold
               : FontWeight.w600,
           color: fg,
