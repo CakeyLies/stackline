@@ -240,6 +240,12 @@ class Keypad extends StatelessWidget {
   /// side panel next to the main pad, since landscape phones are wide but
   /// short — stacking all 8 portrait rows top-to-bottom there squashes every
   /// key down to a sliver.
+  ///
+  /// Uses 5 rows (like [_digitRows]) rather than grouping into however many
+  /// rows the functions naturally fall into (previously 3): both panels
+  /// stretch to the same total height via `CrossAxisAlignment.stretch`, so
+  /// a row count mismatch made every function-panel row — and so every key
+  /// in it — noticeably taller than a digit-panel row instead of matching.
   List<List<_Key>> _functionRows(CalculatorController c) {
     final s = _specsFor(c);
     return [
@@ -250,26 +256,30 @@ class Keypad extends StatelessWidget {
         _u(s, Opcode.root, KeyKind.alt),
         _u(s, Opcode.square, KeyKind.alt),
         _u(s, Opcode.factorial, KeyKind.alt),
+      ],
+      [
         _u(s, Opcode.log10, KeyKind.alt),
         _u(s, Opcode.tenToX, KeyKind.alt),
         _u(s, Opcode.ln, KeyKind.alt),
         _u(s, Opcode.eToX, KeyKind.alt),
-      ],
-      [
         _u(s, Opcode.sin, KeyKind.alt),
         _u(s, Opcode.asin, KeyKind.alt),
+      ],
+      [
         _u(s, Opcode.cos, KeyKind.alt),
         _u(s, Opcode.acos, KeyKind.alt),
         _u(s, Opcode.tan, KeyKind.alt),
         _u(s, Opcode.atan, KeyKind.alt),
         _u(s, Opcode.percent, KeyKind.alt),
+      ],
+      [
         _u(s, Opcode.percentChange, KeyKind.alt),
         _u(s, Opcode.pi, KeyKind.alt),
         _u(s, Opcode.eConst, KeyKind.alt),
-      ],
-      [
         _u(s, Opcode.store, KeyKind.alt),
         _u(s, Opcode.recall, KeyKind.alt),
+      ],
+      [
         _u(s, Opcode.swapXY, KeyKind.alt),
         _u(s, Opcode.rollDown, KeyKind.alt),
         _u(s, Opcode.rollUp, KeyKind.alt),
@@ -410,14 +420,14 @@ class _KeyButton extends StatelessWidget {
         bg = theme.keyAltBackground;
         fg = shifted ? theme.accent : theme.keyAltText;
       case KeyKind.accent:
+      case KeyKind.operator:
+        // Same guaranteed-contrast pairing as ENTER: every theme defines
+        // accentText specifically to read against a solid accent fill.
+        // A semi-transparent accent tint here (the previous approach) put
+        // accent-colored text on an accent-tinted background — similar
+        // hues, poor contrast on several themes.
         bg = theme.accent;
         fg = theme.accentText;
-      case KeyKind.operator:
-        bg = Color.alphaBlend(
-          theme.accent.withValues(alpha: 0.28),
-          theme.keyAltBackground,
-        );
-        fg = theme.accent;
       case KeyKind.shift:
         if (controller.shift) {
           bg = theme.accent;

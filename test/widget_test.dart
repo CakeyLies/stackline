@@ -1,5 +1,4 @@
-import 'dart:ui';
-
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -167,4 +166,48 @@ void main() {
 
     expect(find.text('8.0000'), findsOneWidget);
   });
+
+  testWidgets(
+    'arithmetic operator keys use the accent/accentText contrast pairing',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = CalculatorController(prefs);
+
+      await tester.pumpWidget(RpnEdgeApp(controller: controller));
+      await tester.pump();
+
+      for (final preset in CalcTheme.presets) {
+        controller.setTheme(preset);
+        await tester.pump();
+
+        for (final label in ['+', '−', '×', '÷']) {
+          final textFinder = find.text(label);
+          expect(
+            textFinder,
+            findsOneWidget,
+            reason: '$label on ${preset.name}',
+          );
+
+          final text = tester.widget<Text>(textFinder);
+          expect(
+            text.style?.color,
+            preset.accentText,
+            reason: '$label foreground on ${preset.name}',
+          );
+
+          final material = tester.widget<Material>(
+            find
+                .ancestor(of: textFinder, matching: find.byType(Material))
+                .first,
+          );
+          expect(
+            material.color,
+            preset.accent,
+            reason: '$label background on ${preset.name}',
+          );
+        }
+      }
+    },
+  );
 }
